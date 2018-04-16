@@ -10,31 +10,31 @@ extern crate failure;
 extern crate unindent;
 
 use console::style;
-use failure::Error;
-use std::panic;
+use std::panic::PanicInfo;
 use unindent::unindent;
 
-/// Catch any error handlers that occur, and
-// Cargo env vars available:
-// https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
-pub fn catch_unwind<F: FnOnce() -> Result<(), Error>>(f: F) {
-  panic::set_hook(Box::new(|_panic_info| {
-    // TODO: create log report.
-    print_msg();
-  }));
+/// Setup the human panic hook that will make all panics
+/// as beautiful as your shitty code.
+#[macro_export]
+macro_rules! setup_panic {
+  () => {
+    use std::env;
+    use std::panic::{self, PanicInfo};
+    use human_panic::*;
+    let _version = env!("CARGO_PKG_VERSION");
+    let name = env!("CARGO_PKG_NAME");
+    let authors = env!("CARGO_PKG_AUTHORS");
+    let homepage = env!("CARGO_PKG_HOMEPAGE");
 
-  match f() {
-    Ok(_) => {}
-    _ => { /* TODO: create log report. */ }
-  }
+    panic::set_hook(Box::new(move |info: &PanicInfo| {
+      print_msg(_version, name, authors, homepage);
+      handle_dump(info);
+    }));
+  };
 }
 
-fn print_msg() {
-  let _version = env!("CARGO_PKG_VERSION");
-  let name = env!("CARGO_PKG_NAME");
-  let authors = env!("CARGO_PKG_AUTHORS");
-  let homepage = env!("CARGO_PKG_HOMEPAGE");
-
+/// Utility function to print a pretty message for our human users
+pub fn print_msg(_version: &str, name: &str, authors: &str, homepage: &str) {
   let mut msg = unindent(&format!(r#"
       Well, this is embarrasing.
 
@@ -54,3 +54,7 @@ fn print_msg() {
   msg.push_str("\nThank you kindly!");
   eprintln!("{}", style(msg).red());
 }
+
+/// Utility function which will handle dumping information to disk
+/// TODO: Implement
+pub fn handle_dump(_panic_info: &PanicInfo) {}
